@@ -1,0 +1,6 @@
+E:\Workana\047-Maps en Asp.Net Mvc Sql Server Api de google Pasar a Ado .net\Sotfware\Geolocalizacion\CapaNegocio\bin\Debug\CapaNegocio.dll
+E:\Workana\047-Maps en Asp.Net Mvc Sql Server Api de google Pasar a Ado .net\Sotfware\Geolocalizacion\CapaNegocio\bin\Debug\CapaNegocio.pdb
+E:\Workana\047-Maps en Asp.Net Mvc Sql Server Api de google Pasar a Ado .net\Sotfware\Geolocalizacion\CapaNegocio\obj\Debug\CapaNegocio.csprojAssemblyReference.cache
+E:\Workana\047-Maps en Asp.Net Mvc Sql Server Api de google Pasar a Ado .net\Sotfware\Geolocalizacion\CapaNegocio\obj\Debug\CapaNegocio.csproj.CoreCompileInputs.cache
+E:\Workana\047-Maps en Asp.Net Mvc Sql Server Api de google Pasar a Ado .net\Sotfware\Geolocalizacion\CapaNegocio\obj\Debug\CapaNegocio.dll
+E:\Workana\047-Maps en Asp.Net Mvc Sql Server Api de google Pasar a Ado .net\Sotfware\Geolocalizacion\CapaNegocio\obj\Debug\CapaNegocio.pdb
