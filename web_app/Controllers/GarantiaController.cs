@@ -30,6 +30,22 @@ namespace Geolocalizacion.Controllers
             return Json(new { data = listadoClientes }, JsonRequestBehavior.AllowGet);
         }
 
+        public JsonResult ListarSegmentos()
+        {
+            DBSegmento db = new DBSegmento();
+            var listado = db.Listar();
+
+            return Json(new { data = listado }, JsonRequestBehavior.AllowGet);
+        }
+
+        public JsonResult ListarCadenas()
+        {
+            DbCadena db = new DbCadena();
+            var listado = db.Listar();
+
+            return Json(new { data = listado }, JsonRequestBehavior.AllowGet);
+        }
+
         public JsonResult ListarVistaGarantia()
         {
             DBVistaGarantia dBVistaGarantia = new DBVistaGarantia();
