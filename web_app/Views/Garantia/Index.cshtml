@@ -82,13 +82,12 @@
                         <div class="col-6">
                             <label for="cmbCadena">Cadena</label>
                             <select id="cmbCadena">
-                         >
+                                >
                             </select>
                         </div>
                         <div class="col-6">
                             <label for="cmbSegmento">Segmento</label>
                             <select id="cmbSegmento">
-                            
                             </select>
                         </div>
                     </div>
@@ -229,7 +228,7 @@
 
                             <div>
                                 <label for="txtFecha">Fecha:</label>
-                                <input class="form-control" type="date" id="txtFecha">
+                                <input class="form-control datepicker" type="text" id="txtFecha">
 
                             </div>
 
@@ -664,7 +663,8 @@
                             $("#txtNumG").val(data.NumGa);
                             $("#txtTipPre").val(data.TipoPre);
                             $("#txtConUs").val(data.CondUso);
-                            $("#txtFecha").val(moment(data.avaluo).format('YYYY-MM-DD'));
+                            //$("#txtFecha").val(moment(data.avaluo).format('YYYY-MM-DD'));
+                            $("#txtFecha").val(moment(data.avaluo).format('DD-MM-YYYY'));
                             $("#txtValC").val(data.valCom);
                             $("#txtSupTo").val(data.supTot);
                             $("#txtUS").val(data.supUsa);
@@ -709,6 +709,12 @@
 
         }
 
+        function convertirFechaFormatoBaseDatos(datosFecha) {
+            var dateMomentObject = moment(datosFecha, "DD/MM/YYYY");
+            var resultado = moment(dateMomentObject).format('YYYY-MM-DD');
+            return resultado;
+        }
+
         function Guardar() {
 
             var $data = {
@@ -723,7 +729,7 @@
                     NumGa: $("#txtNumG").val(),
                     TipoPre: $("#txtTipPre").val(),
                     CondUso: $("#txtConUs").val(),
-                    avaluo: $("#txtFecha").val(),
+                    avaluo: convertirFechaFormatoBaseDatos($("#txtFecha").val()),
                     valCom: parseInt($("#txtValC").val()),
                     supTot: parseInt($("#txtSupTo").val()),
                     supUsa: parseInt($("#txtUS").val()),
@@ -846,7 +852,7 @@
 
         async function cargarComboSegmento() {
             var datos = await obtenerSegmentos()
-       
+
             var $dropdown = $("#cmbSegmento");
             $.each(datos, function () {
                 $dropdown.append($("<option />").val(this.descripcion).text(this.descripcion));
@@ -935,6 +941,15 @@
 
     </script>
     <!-- Final Codigo de seleccion de puntos gps -->
+
+
+    <script>
+        $(function () {
+            $(".datepicker").datepicker({
+                dateFormat: "dd-mm-yy"
+            });
+        });
+    </script>
 
 }
 
