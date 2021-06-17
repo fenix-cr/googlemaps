@@ -21,11 +21,17 @@
         </footer>
     </div>
 
+
+
     @Scripts.Render("~/bundles/jquery")
     @Scripts.Render("~/bundles/bootstrap")
     @Scripts.Render("~/bundles/Plugins/js")
-    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <link href="~/Content/jquery-ui.css" rel="stylesheet" type="text/css">
+    <script src="~/Scripts/jquery-ui.js"></script>
+
+    <link href="~/Content/select2.min.css" rel="stylesheet" type="text/css">
+    <script src="~/Scripts/select2.min.js"></script>
+
 
     @RenderSection("scripts", required: false)
 </body>

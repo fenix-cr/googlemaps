@@ -56,8 +56,49 @@
 
                 </table>
 
+                <br />
+                <div class="row">
+                    <div class="col-7">
+
+                    </div>
+                    <div class="col-5">
+
+                    </div>
+                </div>
+                <br />
+                <div class="row">
+                    <div class="col-8">
+                        <select class="col-12 js-example-basic-single" name="cboFiguras" id="cboFiguras">
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <input class="col-12 btn btn-info" id="btnRestaurar" value="Ver" type="button" />
+                    </div>
+                    <div class="col-2">
+                        <input class="col-12 btn btn-danger" id="btnEliminarFigura" value="Eliminar" type="button" />
+                    </div>
+                </div>
+                <br />
+
+                <div class="row">
+                    <div class="col-10">
+                        <input class="col-12 form-control" placeholder="Descripcion figura" id="figura_descripcion" value="" />
+                        <div id="verificacionDescripcion" style="color:red;display:none">Descripcion incorrecta</div>
+                    </div>
+                    <div class="col-2">
+                        <input class="col-12 btn btn-success" id="save_encoded" value="Guardar Figura" placeholder="Descripcion Figura" type="button" />
+                    </div>
+                </div>
+
+                <br />
+                <div class="row">
+                    <div class="col-2">
+                        <input style="float:right" class="col-12 form-control" id="clear_shapes" value="Limpiar figuras" type="button" />
+                    </div>
+                </div>
+
                 <div class="form-group mt-3">
-                    <div id="Mapa2" style="width:100% ; height:300px;"></div>
+                    <div id="mapaPrincipal" style="width:100% ; height:300px;"></div>
                 </div>
             </div>
 
@@ -114,7 +155,7 @@
                     <div class="col-sm-6">
 
                         <div class="form-group">
-                            <div id="ModalMapPreview" style="width:100% ; height:600px;"></div>
+                            <div id="mapaEdicion" style="width:100% ; height:600px;"></div>
                         </div>
 
                     </div>
@@ -379,17 +420,51 @@
 
     <!-- Codigo de mapas -->
     <script>
-        var vMarker
-        var map
+        var vMarker;
+        var map;
+        var latitudInicial = '-17.809512';
+        var longitudInicial = '-63.199832';
 
+
+        var shapes = [];
+        var selected_shape = null;
+        var byId = function (s) { return document.getElementById(s) };
+        var clearSelection = function () {
+            if (selected_shape) {
+                selected_shape.set((selected_shape.type
+                    ===
+                    google.maps.drawing.OverlayType.MARKER
+                ) ? 'draggable' : 'editable', false);
+                selected_shape = null;
+            }
+        };
+        var setSelection = function (shape) {
+            clearSelection();
+            selected_shape = shape;
+
+            selected_shape.set((selected_shape.type
+                ===
+                google.maps.drawing.OverlayType.MARKER
+            ) ? 'draggable' : 'editable', true);
+
+        };
+        var clearShapes = function () {
+            for (var i = 0; i < shapes.length; ++i) {
+                shapes[i].setMap(null);
+            }
+            shapes = [];
+            limpiarFormasMapa();
+        };
+
+
+        //Iniciar mapas
         function iniciarMapas() {
-
-            mapaListado = cargarMapa('Mapa2');
-            mapaDetalle = cargarMapa('ModalMapPreview');
-            configurarMarcadorPuntos(mapaDetalle);
+            mapaPrincipal = crearMapa('mapaPrincipal', latitudInicial, longitudInicial);
+            mapaEdicion = crearMapa('mapaEdicion', latitudInicial, longitudInicial);
+            dibujarMarcador(mapaEdicion, latitudInicial, longitudInicial);
         }
 
-        $.getScript("https://maps.googleapis.com/maps/api/js?key=AIzaSyAxFURWRz0_MMd6tRc0jIkEZikkb5_YI70&callback=iniciarMapas")
+        $.getScript("https://maps.googleapis.com/maps/api/js?key=AIzaSyAxFURWRz0_MMd6tRc0jIkEZikkb5_YI70&libraries=drawing,geometry&callback=iniciarMapas")
             .done(function (script, textStatus) {
                 refrescarListadoMapa();
             })
@@ -404,7 +479,7 @@
             type: 'GET',
             dataType: 'json',
             success: function (json) {
-                cargarListadoPuntos(map,json.data);
+                dibujarListadoMarcadores(map,json.data);
             },
             error: function (xhr, status) {
                 alert('Disculpe, existió un problema');
@@ -412,42 +487,214 @@
           });
         }
 
-        function cargarMapa(idElement) {
-            map = new google.maps.Map(document.getElementById(idElement), {
+        function limpiarFormasMapa() {
+            var tipoFiltroMapa = $('#tipo_filtro_mapa').find(":selected").val();
+            if (tipoFiltroMapa == "TODO") {
+                refrescarListadoMapa();
+            } else {
+                cargarRegistrosSeleccionados();
+            }
+        }
+
+        function crearMapa(idElement, lat, lon) {
+            var goo = google.maps;
+            mapa = new goo.Map(document.getElementById(idElement), {
                 zoom: 6,
-                center: new google.maps.LatLng(-17.809512, -63.199832),
-                mapTypeId: google.maps.MapTypeId.ROADMAP
+                center: new goo.LatLng(lat, lon),
+                mapTypeId: goo.MapTypeId.ROADMAP
             });
-            return map;
+
+            if (idElement == 'mapaPrincipal') {
+                var drawman = new goo.drawing.DrawingManager({ map: mapa });
+
+                goo.event.addListener(drawman, 'overlaycomplete', function (e) {
+                    var shape = e.overlay;
+                    shape.type = e.type;
+                    goo.event.addListener(shape, 'click', function () {
+                        setSelection(this);
+                    });
+                    setSelection(shape);
+                    shapes.push(shape);
+                });
+
+                goo.event.addListener(mapa, 'click', clearSelection);
+
+                document.getElementById("clear_shapes").addEventListener("click", clearShapes);
+
+                goo.event.addDomListener(byId('save_encoded'), 'click', function () {
+                    var data = IO.IN(shapes, true);
+                    var descripcionFigura = byId('figura_descripcion').value;
+                    if (descripcionFigura.length == 0) {
+                        $('#verificacionDescripcion').css("display", "block");
+                        verificacionDescripcion
+                        return false;
+                    } else {
+                        $('#verificacionDescripcion').css("display", "none");
+                    }
+                    GuardarFigura(JSON.stringify(data), descripcionFigura);
+                    clearShapes();
+                });
+              
+                goo.event.addDomListener(byId('btnRestaurar'), 'click', function () {
+                    if (this.shapes) {
+                        for (var i = 0; i < this.shapes.length; ++i) {
+                            this.shapes[i].setMap(null);
+                        }
+                    }
+
+                    try {
+                        var figura = JSON.parse($('#cboFiguras').val());
+                        var datos = figura.datos;
+                        this.shapes = IO.OUT(JSON.parse(datos), mapa);
+                    }
+                   catch (err) { }   
+                });
+
+            }
+
+            return mapa;
         }
 
-        function cargarMapaPuntos(idElement,lat,lon) {
-            map = new google.maps.Map(document.getElementById(idElement), {
-                zoom: 6,
-                center: new google.maps.LatLng(lat, lon),
-                mapTypeId: google.maps.MapTypeId.ROADMAP
-            });
-            return map;
+        var IO = {
+            //returns array with storable google.maps.Overlay-definitions
+            IN: function (arr,//array with google.maps.Overlays
+                encoded//boolean indicating whether pathes should be stored encoded
+            ) {
+                var shapes = [],
+                    goo = google.maps,
+                    shape, tmp;
+
+                for (var i = 0; i < arr.length; i++) {
+                    shape = arr[i];
+                    tmp = { type: this.t_(shape.type), id: shape.id || null };
+
+
+                    switch (tmp.type) {
+                        case 'CIRCLE':
+                            tmp.radius = shape.getRadius();
+                            tmp.geometry = this.p_(shape.getCenter());
+                            break;
+                        case 'MARKER':
+                            tmp.geometry = this.p_(shape.getPosition());
+                            break;
+                        case 'RECTANGLE':
+                            tmp.geometry = this.b_(shape.getBounds());
+                            break;
+                        case 'POLYLINE':
+                            tmp.geometry = this.l_(shape.getPath(), encoded);
+                            break;
+                        case 'POLYGON':
+                            tmp.geometry = this.m_(shape.getPaths(), encoded);
+
+                            break;
+                    }
+                    shapes.push(tmp);
+                }
+
+                return shapes;
+            },
+            //returns array with google.maps.Overlays
+            OUT: function (arr,//array containg the stored shape-definitions
+                map//map where to draw the shapes
+            ) {
+                var shapes = [],
+                    goo = google.maps,
+                    map = map || null,
+                    shape, tmp;
+
+                for (var i = 0; i < arr.length; i++) {
+                    shape = arr[i];
+
+                    switch (shape.type) {
+                        case 'CIRCLE':
+                            tmp = new goo.Circle({ radius: Number(shape.radius), center: this.pp_.apply(this, shape.geometry) });
+                            break;
+                        case 'MARKER':
+                            tmp = new goo.Marker({ position: this.pp_.apply(this, shape.geometry) });
+                            break;
+                        case 'RECTANGLE':
+                            tmp = new goo.Rectangle({ bounds: this.bb_.apply(this, shape.geometry) });
+                            break;
+                        case 'POLYLINE':
+                            tmp = new goo.Polyline({ path: this.ll_(shape.geometry) });
+                            break;
+                        case 'POLYGON':
+                            tmp = new goo.Polygon({ paths: this.mm_(shape.geometry) });
+
+                            break;
+                    }
+                    tmp.setValues({ map: map, id: shape.id })
+                    shapes.push(tmp);
+                }
+                return shapes;
+            },
+            l_: function (path, e) {
+                path = (path.getArray) ? path.getArray() : path;
+                if (e) {
+                    return google.maps.geometry.encoding.encodePath(path);
+                } else {
+                    var r = [];
+                    for (var i = 0; i < path.length; ++i) {
+                        r.push(this.p_(path[i]));
+                    }
+                    return r;
+                }
+            },
+            ll_: function (path) {
+                if (typeof path === 'string') {
+                    return google.maps.geometry.encoding.decodePath(path);
+                }
+                else {
+                    var r = [];
+                    for (var i = 0; i < path.length; ++i) {
+                        r.push(this.pp_.apply(this, path[i]));
+                    }
+                    return r;
+                }
+            },
+
+            m_: function (paths, e) {
+                var r = [];
+                paths = (paths.getArray) ? paths.getArray() : paths;
+                for (var i = 0; i < paths.length; ++i) {
+                    r.push(this.l_(paths[i], e));
+                }
+                return r;
+            },
+            mm_: function (paths) {
+                var r = [];
+                for (var i = 0; i < paths.length; ++i) {
+                    r.push(this.ll_.call(this, paths[i]));
+
+                }
+                return r;
+            },
+            p_: function (latLng) {
+                return ([latLng.lat(), latLng.lng()]);
+            },
+            pp_: function (lat, lng) {
+                return new google.maps.LatLng(lat, lng);
+            },
+            b_: function (bounds) {
+                return ([this.p_(bounds.getSouthWest()),
+                this.p_(bounds.getNorthEast())]);
+            },
+            bb_: function (sw, ne) {
+                return new google.maps.LatLngBounds(this.pp_.apply(this, sw),
+                    this.pp_.apply(this, ne));
+            },
+            t_: function (s) {
+                var t = ['CIRCLE', 'MARKER', 'RECTANGLE', 'POLYLINE', 'POLYGON'];
+                for (var i = 0; i < t.length; ++i) {
+                    if (s === google.maps.drawing.OverlayType[t[i]]) {
+                        return t[i];
+                    }
+                }
+            }
+
         }
 
-        function configurarMarcadorPuntos(map) {
-            vMarker = new google.maps.Marker({
-                position: new google.maps.LatLng(-17.809512, -63.199832),
-                draggable: true
-            });
-
-            google.maps.event.addListener(vMarker, 'dragend', function (evt) {
-                $("#txtLat").val(evt.latLng.lat().toFixed(6));
-                $("#txtLong").val(evt.latLng.lng().toFixed(6));
-
-                map.panTo(evt.latLng);
-            });
-
-            map.setCenter(vMarker.position);
-            vMarker.setMap(map);
-        }
-
-        function configurarMarcadorPuntosMapa(map,lat,lon) {
+        function dibujarMarcador(map,lat,lon) {
             vMarker = new google.maps.Marker({
                 position: new google.maps.LatLng(lat, lon),
                 draggable: true
@@ -464,7 +711,7 @@
             vMarker.setMap(map);
         }
 
-        function cargarListadoPuntos(map, data) {
+        function dibujarListadoMarcadores(map, data) {
             var infowindow;
             for (i = 0; i < data.length; i++) {
                 marker = new google.maps.Marker({
@@ -488,7 +735,7 @@
     <!-- Final Codigo de mapas -->
     <!-- Codigo de validaciones -->
     <script>
-
+        //validar datos
         $("#txtValC").on({
             "focus": function (event) {
                 $(event.target).select();
@@ -632,13 +879,13 @@
          });
 
         function refrescarListadoMapa() {
-            mapaListado = cargarMapa('Mapa2');
-            cargarPuntosGps(mapaListado);
+            mapaPrincipal = crearMapa('mapaPrincipal', latitudInicial, longitudInicial);
+            cargarPuntosGps(mapaPrincipal);
         }
 
         function refrescarListadoMapaRegistrosSeleccionados(data) {
-            mapaListado = cargarMapa('Mapa2');
-            cargarListadoPuntos(mapaListado, data);
+            mapaPrincipal = crearMapa('mapaPrincipal', latitudInicial, longitudInicial);
+            dibujarListadoMarcadores(mapaPrincipal, data);
         }
 
         function abrirModal($idcliente) {
@@ -673,8 +920,8 @@
                             $("#txtObs").val(data.obs);
                             $("#txtSucursal").val(data.sucursal);
                             $("#txtRegion").val(data.region);
-                            var map = cargarMapaPuntos('ModalMapPreview', data.Latitud, data.Longitud);
-                            configurarMarcadorPuntosMapa(map, data.Latitud, data.Longitud);
+                            var map = crearMapa('mapaEdicion', data.Latitud, data.Longitud);
+                            dibujarMarcador(map, data.Latitud, data.Longitud);
                         }
 
                     }
@@ -704,8 +951,8 @@
 
             $('#FormModal').modal('show');
 
-            var map = cargarMapaPuntos('ModalMapPreview', "-16.191613", "-64.496218");
-            configurarMarcadorPuntosMapa(map, "-16.191613", "-64.496218");
+            var map = crearMapa('mapaEdicion', "-16.191613", "-64.496218");
+            dibujarMarcador(map, "-16.191613", "-64.496218");
 
         }
 
@@ -715,6 +962,7 @@
             return resultado;
         }
 
+        //crud cliente
         function Guardar() {
 
             var $data = {
@@ -802,7 +1050,6 @@
               tabla_persona2.ajax.reload();
         }
 
-
         function cargarDatosCliente(IDCn, Nombres, sucursal, region,cadena, segmento) {
 
             $("#txtIdCliente").val(0);
@@ -833,8 +1080,7 @@
             verificarComboCadenaSegmento();
         }
 
-
-         function obtenerCadenas() {
+        function obtenerCadenas() {
             return  $.ajax({
             url: "@Url.Action("ListarCadenas", "Garantia")",
             type: 'GET',
@@ -848,6 +1094,87 @@
             type: 'GET',
                 dataType: 'json',
             }).then(response => response.data);
+        }
+
+        //crud figuras
+        function listarFiguras() {
+            return  $.ajax({
+            url: "@Url.Action("Listar", "FigurasMapa")",
+            type: 'GET',
+                dataType: 'json',
+            }).then(response => response.data);
+        }
+
+        async function cargarComboFiguras() {
+            var datos = await listarFiguras()
+
+            var $dropdown = $("#cboFiguras");
+            $dropdown.empty();
+            $dropdown.append($("<option />").val('0').text('Seleccione una opcion'));
+            $.each(datos, function () {
+                var datos = JSON.stringify(this);
+                $dropdown.append($("<option />").val(datos).text(this.descripcion));
+            });
+
+            console.log(datos);
+        }
+
+        function GuardarFigura(datosFigura, descripcion) {
+
+            var $data = {
+                datos: {
+                    id: 0,
+                    descripcion: descripcion,
+                    datos: datosFigura,
+                }
+            }
+
+            if (datosFigura.length == 2) {
+                return false;
+            }
+
+            jQuery.ajax({
+                url: "@Url.Action("Guardar", "FigurasMapa")",
+                type: "POST",
+                data: JSON.stringify($data),
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    cargarComboFiguras();
+                    $('#figura_descripcion').val('');
+                    alert('Datos guardados');
+                },
+                error: function (error) {
+                    console.log(error)
+                },
+                beforeSend: function () {
+
+                }
+            });
+
+        }
+
+        function EliminarFigura($id) {
+            if (confirm("¿Realmente desea eliminar?")) {
+                var $data = {
+                    id: $id,
+                };
+                jQuery.ajax({
+                    url: "@Url.Action("Eliminar", "FigurasMapa")",
+                    type: "POST",
+                    data: JSON.stringify($data),
+                    dataType: "json",
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data, textStatus, jqXHR) {
+
+                        if (data.resultado) {
+                            cargarComboFiguras();
+                            alert('Datos eliminados');
+                            limpiarFormasMapa();
+                        }
+                    }
+                });
+            }
         }
 
         async function cargarComboSegmento() {
@@ -870,6 +1197,7 @@
 
         cargarComboSegmento();
         cargarComboCadena();
+        cargarComboFiguras();
 
 
     </script>
@@ -882,12 +1210,21 @@
                     limpiarSeleccion();
                     refrescarListadoMapa();
                 } else {
-                    mapaListado = cargarMapa('Mapa2');
+                    mapaPrincipal = crearMapa('mapaPrincipal', latitudInicial, longitudInicial);
                 }
             });
 
         });
 
+        //Eliminar figura
+        $("#btnEliminarFigura").click(function () {
+            var figura = JSON.parse($('#cboFiguras').val());
+            var id = figura.id;
+            EliminarFigura(id);
+            
+        });
+
+        //Filtro seleccion
         $("#myTable").on("click", "td", function () {
             if ($(this).has('button').length == 0) {
                 var tipoFiltroMapa = $('#tipo_filtro_mapa').find(":selected").val();
@@ -909,16 +1246,17 @@
 
         });
 
+
         function limpiarSeleccion() {
             $('.selected').each(function () {
                 $(this).toggleClass('selected');
-                mapaListado = cargarMapa('Mapa2');
+                mapaPrincipal = crearMapa('mapaPrincipal', latitudInicial, longitudInicial);
             });
 
         }
 
         function cargarRegistrosSeleccionados() {
-            mapaListado = cargarMapa('Mapa2');
+            mapaPrincipal = crearMapa('mapaPrincipal', latitudInicial, longitudInicial);
             $('.selected td:first-child').each(function () {
                 var table = $('#myTable').DataTable();
                 arrayResultado = [];
@@ -948,6 +1286,10 @@
             $(".datepicker").datepicker({
                 dateFormat: "dd-mm-yy"
             });
+        });
+
+        $(document).ready(function () {
+            $('.js-example-basic-single').select2();
         });
     </script>
 

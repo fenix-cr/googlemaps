@@ -44,6 +44,7 @@
   <ItemGroup>
     <Compile Include="DbCadena.cs" />
     <Compile Include="DBCliente.cs" />
+    <Compile Include="DbFigurasMapa.cs" />
     <Compile Include="DBSegmento.cs" />
     <Compile Include="DBVistaGarantia.cs" />
     <Compile Include="DConexion.cs" />

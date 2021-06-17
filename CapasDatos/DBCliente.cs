@@ -129,7 +129,6 @@ namespace CapasDatos
             return datos;
         }
 
-
         public Boolean Insertar(Cliente datos)
         {
             Boolean resultado = true;
