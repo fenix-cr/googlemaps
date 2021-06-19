@@ -418,13 +418,98 @@
 
     <script src="~/Scripts/moment.js"></script>
 
+    <!-- crud figuras  -->
+    <script>
+         //crud figuras
+        function listarFiguras() {
+            return  $.ajax({
+            url: "@Url.Action("Listar", "FigurasMapa")",
+            type: 'GET',
+                dataType: 'json',
+            }).then(response => response.data);
+        }
+
+        async function cargarComboFiguras() {
+            var datos = await listarFiguras()
+
+            var $dropdown = $("#cboFiguras");
+            $dropdown.empty();
+            $dropdown.append($("<option />").val('0').text('Todas las figuras'));
+            $.each(datos, function () {
+                var datos = JSON.stringify(this);
+                $dropdown.append($("<option />").val(datos).text(this.descripcion));
+            });
+
+            console.log(datos);
+        }
+
+        function GuardarFigura(datosFigura, descripcion) {
+
+            var $data = {
+                datos: {
+                    id: 0,
+                    descripcion: descripcion,
+                    datos: datosFigura,
+                }
+            }
+
+            if (datosFigura.length == 2) {
+                return false;
+            }
+
+            jQuery.ajax({
+                url: "@Url.Action("Guardar", "FigurasMapa")",
+                type: "POST",
+                data: JSON.stringify($data),
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    cargarComboFiguras();
+                    $('#figura_descripcion').val('');
+                    alert('Datos guardados');
+                },
+                error: function (error) {
+                    console.log(error)
+                },
+                beforeSend: function () {
+
+                }
+            });
+
+        }
+
+        function EliminarFigura($id) {
+            if (confirm("¿Realmente desea eliminar?")) {
+                var $data = {
+                    id: $id,
+                };
+                jQuery.ajax({
+                    url: "@Url.Action("Eliminar", "FigurasMapa")",
+                    type: "POST",
+                    data: JSON.stringify($data),
+                    dataType: "json",
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data, textStatus, jqXHR) {
+
+                        if (data.resultado) {
+                            cargarComboFiguras();
+                            alert('Datos eliminados');
+                            limpiarFormasMapa();
+                        }
+                    }
+                });
+            }
+        }
+
+    </script>
+    <!--fin crud figuras  -->
     <!-- Codigo de mapas -->
     <script>
         var vMarker;
         var map;
         var latitudInicial = '-17.809512';
         var longitudInicial = '-63.199832';
-
+        var configurarEventos = true;
 
         var shapes = [];
         var selected_shape = null;
@@ -448,13 +533,6 @@
             ) ? 'draggable' : 'editable', true);
 
         };
-        var clearShapes = function () {
-            for (var i = 0; i < shapes.length; ++i) {
-                shapes[i].setMap(null);
-            }
-            shapes = [];
-            limpiarFormasMapa();
-        };
 
 
         //Iniciar mapas
@@ -467,10 +545,24 @@
         $.getScript("https://maps.googleapis.com/maps/api/js?key=AIzaSyAxFURWRz0_MMd6tRc0jIkEZikkb5_YI70&libraries=drawing,geometry&callback=iniciarMapas")
             .done(function (script, textStatus) {
                 refrescarListadoMapa();
+                $('#btnRestaurar').click();
             })
             .fail(function (jqxhr, settings, exception) {
                 console.log("Triggered ajaxError handler.");
             });
+
+        async function dibutarTodasFiguras(mapa,shapes) {
+            var res = await listarFiguras(); var temp = null;
+            var listadoFiguras = [];
+
+            for (var i = 0; i < res.length; i++) {
+                var temp = JSON.parse(res[i].datos);
+
+                listadoFiguras.push(temp);
+                IO.OUT(temp, mapa);
+            }
+
+        }
 
 
         function cargarPuntosGps(map) {
@@ -503,56 +595,85 @@
                 center: new goo.LatLng(lat, lon),
                 mapTypeId: goo.MapTypeId.ROADMAP
             });
-
-            if (idElement == 'mapaPrincipal') {
-                var drawman = new goo.drawing.DrawingManager({ map: mapa });
-
-                goo.event.addListener(drawman, 'overlaycomplete', function (e) {
-                    var shape = e.overlay;
-                    shape.type = e.type;
-                    goo.event.addListener(shape, 'click', function () {
-                        setSelection(this);
-                    });
-                    setSelection(shape);
-                    shapes.push(shape);
-                });
-
-                goo.event.addListener(mapa, 'click', clearSelection);
-
-                document.getElementById("clear_shapes").addEventListener("click", clearShapes);
-
-                goo.event.addDomListener(byId('save_encoded'), 'click', function () {
-                    var data = IO.IN(shapes, true);
-                    var descripcionFigura = byId('figura_descripcion').value;
-                    if (descripcionFigura.length == 0) {
-                        $('#verificacionDescripcion').css("display", "block");
-                        verificacionDescripcion
-                        return false;
-                    } else {
-                        $('#verificacionDescripcion').css("display", "none");
-                    }
-                    GuardarFigura(JSON.stringify(data), descripcionFigura);
-                    clearShapes();
-                });
-              
-                goo.event.addDomListener(byId('btnRestaurar'), 'click', function () {
-                    if (this.shapes) {
-                        for (var i = 0; i < this.shapes.length; ++i) {
-                            this.shapes[i].setMap(null);
-                        }
-                    }
-
-                    try {
-                        var figura = JSON.parse($('#cboFiguras').val());
-                        var datos = figura.datos;
-                        this.shapes = IO.OUT(JSON.parse(datos), mapa);
-                    }
-                   catch (err) { }   
-                });
-
-            }
-
+            configurarMapa(goo, mapa);
+       
             return mapa;
+        }
+
+        function configurarMapa(goo,mapa) {
+            var listenerDibujarForma;
+            var listenerSeleccion;
+            var listenerLimpiarShapes;
+            var listenerSalvar;
+            var listenerRestaurar;
+
+            var drawman = new goo.drawing.DrawingManager({ map: mapa });
+
+            var listenerDibujarForma =goo.event.addListener(drawman, 'overlaycomplete', function (e) {
+                var shape = e.overlay;
+                shape.type = e.type;
+                goo.event.addListener(shape, 'click', function () {
+                    setSelection(this);
+                });
+                setSelection(shape);
+                shapes.push(shape);
+            });
+
+
+            var listenerSeleccion = goo.event.addListener(mapa, 'click', clearSelection);
+
+            var listenerSalvar = goo.event.addDomListener(byId('save_encoded'), 'click', function () {
+                var data = IO.IN(shapes, true);
+                var descripcionFigura = byId('figura_descripcion').value;
+                if (descripcionFigura.length == 0) {
+                    $('#verificacionDescripcion').css("display", "block");
+                    
+                    return false;
+                } else {
+                    $('#verificacionDescripcion').css("display", "none");
+                }
+                GuardarFigura(JSON.stringify(data), descripcionFigura);
+                clearShapes();
+            });
+
+            var listenerRestaurar = goo.event.addDomListener(byId('btnRestaurar'), 'click', function () {
+                if (shapes) {
+                    for (var i = 0; i < shapes.length; ++i) {
+                        shapes[i].setMap(null);
+                    }
+                }
+               
+                try {
+                    var figura = JSON.parse($('#cboFiguras').val());
+
+                    if (figura == '0') {
+                        dibutarTodasFiguras(mapa, shapes);
+
+                    } else {
+                        var datos = figura.datos;
+                        var temp = JSON.parse(datos);
+                        shapes = IO.OUT(JSON.parse(datos), mapa);
+                    }
+                }
+                catch (err) { }
+
+            });
+
+            clearShapes = function () {
+                for (var i = 0; i < shapes.length; ++i) {
+                    shapes[i].setMap(null);
+                }
+                shapes = [];
+                goo.event.removeListener(listenerDibujarForma);
+                goo.event.removeListener(listenerSeleccion);
+                goo.event.removeListener(listenerLimpiarShapes);
+                goo.event.removeListener(listenerSalvar);
+                goo.event.removeListener(listenerRestaurar);
+                limpiarFormasMapa();
+            };
+
+            var listenerLimpiarShapes = goo.event.addDomListener(byId('clear_shapes'), 'click', clearShapes);
+
         }
 
         var IO = {
@@ -1096,86 +1217,6 @@
             }).then(response => response.data);
         }
 
-        //crud figuras
-        function listarFiguras() {
-            return  $.ajax({
-            url: "@Url.Action("Listar", "FigurasMapa")",
-            type: 'GET',
-                dataType: 'json',
-            }).then(response => response.data);
-        }
-
-        async function cargarComboFiguras() {
-            var datos = await listarFiguras()
-
-            var $dropdown = $("#cboFiguras");
-            $dropdown.empty();
-            $dropdown.append($("<option />").val('0').text('Seleccione una opcion'));
-            $.each(datos, function () {
-                var datos = JSON.stringify(this);
-                $dropdown.append($("<option />").val(datos).text(this.descripcion));
-            });
-
-            console.log(datos);
-        }
-
-        function GuardarFigura(datosFigura, descripcion) {
-
-            var $data = {
-                datos: {
-                    id: 0,
-                    descripcion: descripcion,
-                    datos: datosFigura,
-                }
-            }
-
-            if (datosFigura.length == 2) {
-                return false;
-            }
-
-            jQuery.ajax({
-                url: "@Url.Action("Guardar", "FigurasMapa")",
-                type: "POST",
-                data: JSON.stringify($data),
-                dataType: "json",
-                contentType: "application/json; charset=utf-8",
-                success: function (data) {
-                    cargarComboFiguras();
-                    $('#figura_descripcion').val('');
-                    alert('Datos guardados');
-                },
-                error: function (error) {
-                    console.log(error)
-                },
-                beforeSend: function () {
-
-                }
-            });
-
-        }
-
-        function EliminarFigura($id) {
-            if (confirm("¿Realmente desea eliminar?")) {
-                var $data = {
-                    id: $id,
-                };
-                jQuery.ajax({
-                    url: "@Url.Action("Eliminar", "FigurasMapa")",
-                    type: "POST",
-                    data: JSON.stringify($data),
-                    dataType: "json",
-                    contentType: "application/json; charset=utf-8",
-                    success: function (data, textStatus, jqXHR) {
-
-                        if (data.resultado) {
-                            cargarComboFiguras();
-                            alert('Datos eliminados');
-                            limpiarFormasMapa();
-                        }
-                    }
-                });
-            }
-        }
 
         async function cargarComboSegmento() {
             var datos = await obtenerSegmentos()
@@ -1221,7 +1262,7 @@
             var figura = JSON.parse($('#cboFiguras').val());
             var id = figura.id;
             EliminarFigura(id);
-            
+
         });
 
         //Filtro seleccion

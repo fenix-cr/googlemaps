@@ -1,0 +1,6 @@
+C:\Users\icol2\Desktop\subida google maps\Geolocalizacion\CapaEntidades\bin\Debug\CapaEntidades.dll
+C:\Users\icol2\Desktop\subida google maps\Geolocalizacion\CapaEntidades\bin\Debug\CapaEntidades.pdb
+C:\Users\icol2\Desktop\subida google maps\Geolocalizacion\CapaEntidades\obj\Debug\CapaEntidades.csprojAssemblyReference.cache
+C:\Users\icol2\Desktop\subida google maps\Geolocalizacion\CapaEntidades\obj\Debug\CapaEntidades.csproj.CoreCompileInputs.cache
+C:\Users\icol2\Desktop\subida google maps\Geolocalizacion\CapaEntidades\obj\Debug\CapaEntidades.dll
+C:\Users\icol2\Desktop\subida google maps\Geolocalizacion\CapaEntidades\obj\Debug\CapaEntidades.pdb
